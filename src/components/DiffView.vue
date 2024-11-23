@@ -4,7 +4,7 @@ import DiffMatchPatch from 'diff-match-patch';
 
 const props = defineProps({
     oldContent: String, // 本地仓库版本内容
-    newContent: String, // 工作区文件内容
+    newContent: String, // 工作区版本文件内容
 });
 
 
@@ -53,20 +53,19 @@ const formattedNewContent = computed(() => {
 </script>
 
 <template>
-    <el-dialog v-model="isVisible" title="文件差异对比" width="800px" @close="closeDialog" :modal="false">
+    <el-dialog v-model="isVisible" title="文件差异对比" width="800px" @close="closeDialog">
         <div class="diff-container">
             <div class="diff-column">
-                <h4>本地仓库版本</h4>
+                <h4>本地仓库内容</h4>
                 <div v-html="formattedOldContent" class="diff-content"></div>
             </div>
             <div class="diff-column">
-                <h4>工作区文件</h4>
+                <h4>工作区内容</h4>
                 <div v-html="formattedNewContent" class="diff-content"></div>
             </div>
         </div>
         <template #footer>
             <el-button @click="closeDialog">关闭</el-button>
-            <el-button type="primary" @click="$emit('revert')">恢复到此版本</el-button>
         </template>
     </el-dialog>
 </template>

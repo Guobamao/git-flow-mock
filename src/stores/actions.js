@@ -140,85 +140,89 @@ export const unstageFile = (files, stagingArea, id, workAreaAnimation) => {
 }
 
 /**
- * 提交文件到本地仓库
+ * 提交文件
+ * @param {Array} fileIds 提交文件ID
+ * @param {String} message 提交信息
  * @param {Array} files 文件列表
  * @param {Array} stagingArea 暂存区文件列表
- * @param {Array} repo 本地仓库文件列表
- * @param {number} id 文件ID
- * @param {string} message 提交说明
+ * @param {Array} repo 本地仓库列表
  */
-export const commitFile = (files, stagingArea, repo, id, message, repoAnimation) => {
-  const stagedFile = findFileById(id, stagingArea)
-  if (!stagedFile) return
+export const commitFiles = (fileIds, message, files, stagingArea, repo) => {
+  console.log('FileIds:', fileIds)
 
-  let repoFile = findFileById(id, repo)
-  if (!repoFile) {
-    // 如果本地仓库中没有该文件，则创建
-    repoFile = { id, name: stagedFile.name, versions: [] }
-    repo.push(repoFile)
-
-    // 添加动画
-    repoAnimation.rowAnimation[id] = 'animate__animated animate__bounceInLeft'
-
-    setTimeout(() => {
-      delete repoAnimation.rowAnimation[id]
-    }, 1000)
-  }
+  // 获取提交文件集合
+  const fileList = fileIds.map((id) => findFileById(id, files))
+  console.log('fileList:', fileList)
 
   // 添加新版本到本地仓库，同时将文件从暂存区移除
-  repoFile.versions.unshift({
-    content: stagedFile.content,
+  const repoHistory = {
+    id: repo.length + 1,
     message,
     timestamp: new Date().toLocaleString(),
-  })
+    files: fileList.map((f) => {
+      return {
+        id: f.id,
+        name: f.name,
+        content: f.content,
+      }
+    }),
+  }
 
-  removeFileById(id, stagingArea)
-  const file = findFileById(id, files)
-  if (file) file.status = STATUS_MAP.COMMITTED // 已提交
+  // 倒序插入
+  repo.unshift(repoHistory)
+
+  // 移除暂存区的文件
+  fileList.forEach((f) => {
+    removeFileById(f.id, stagingArea)
+    const file = findFileById(f.id, files)
+    if (file) file.status = STATUS_MAP.COMMITTED // 已提交
+  })
 }
 
 /**
- * 恢复到指定的文件版本
- * @param {Array} files 文件列表
- * @param {Array} repo 本地仓库文件列表
- * @param {number} id 文件ID
- * @param {number} versionIndex 版本索引
+ *
+ * @param {String} commitId 提交ID
+ * @param {Array} files 所有文件列表
+ * @param {Array} repo 本地仓库列表
+ * @param {Array} workAreaAnimation 本店仓库动画
+ * @returns
  */
-export const revertFile = (files, repo, id, versionIndex, workAreaAnimation) => {
-  const repoFile = findFileById(id, repo)
-  if (!repoFile) return
+export const revertFile = (commitId, files, repo, workAreaAnimation) => {
+  const repoHistory = findFileById(commitId, repo)
+  if (!repoHistory) return
 
-  const targetVersion = repoFile.versions[versionIndex]
-  const file = findFileById(id, files)
-  if (file) {
-    file.content = targetVersion.content // 更新文件内容
-    file.status = STATUS_MAP.MODIFIED // 已修改
+  const fileList = repoHistory.files
+  fileList.forEach((f) => {
+    // 判断工作区是否存在该文件，存在则更新，不存在则添加
+    const file = findFileById(f.id, files)
+    if (file) {
+      file.content = f.content // 更新文件内容
+      file.status = STATUS_MAP.MODIFIED // 已修改
 
-    workAreaAnimation.cellAnimation[id] = 'animate__animated animate__fadeIn'
+      workAreaAnimation.cellAnimation[file.id] = 'animate__animated animate__fadeIn'
 
-    setTimeout(() => {
-      delete workAreaAnimation.cellAnimation[id]
-    }, 1000)
-  } else {
-    files.push({
-      id,
-      name: repoFile.name,
-      content: targetVersion.content,
-      status: STATUS_MAP.TRACKED,
-      tracked: true, // 已追踪
-      staged: false, // 未暂存
-    })
+      setTimeout(() => {
+        delete workAreaAnimation.cellAnimation[file.id]
+      }, 1000)
+    } else {
+      files.push({
+        ...f,
+        status: STATUS_MAP.TRACKED, // 已跟踪
+        tracked: true, // 已跟踪
+        staged: false, // 未暂存
+      })
 
-    // 播放动画
-    workAreaAnimation.rowAnimation[id] = 'animate__animated animate__bounceInRight'
+      // 添加动画
+      workAreaAnimation.rowAnimation[f.id] = 'animate__animated animate__bounceInRight'
 
-    setTimeout(() => {
-      delete workAreaAnimation.rowAnimation[id]
-    }, 1000)
-  }
-
-  repoFile.versions = repoFile.versions.slice(versionIndex)
-  repo.find((f) => f.id === id).versions = repoFile.versions
+      setTimeout(() => {
+        delete workAreaAnimation.rowAnimation[f.id]
+      }, 1000)
+    }
+  })
+  // 移除本地仓库记录
+  const commitIndex = repo.findIndex((c) => c.id === commitId)
+  repo.splice(0, commitIndex)
 }
 
 /**
@@ -226,7 +230,7 @@ export const revertFile = (files, repo, id, versionIndex, workAreaAnimation) => 
  * @param {Array} files 文件列表
  * @param {number} id 文件ID
  */
-export const deleteFile = (files, id, workAreaAnimation, stagingAreaAnimation) => {
+export const deleteFile = (files, id, workAreaAnimation) => {
   const file = findFileById(id, files)
   if (!file) return
 

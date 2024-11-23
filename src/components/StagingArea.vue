@@ -2,8 +2,8 @@
 import { useGitStore } from '@/stores';
 import { computed, ref } from 'vue';
 import STATUS_MAP from '@/constants/Status';
-import { Files, Minus, Check } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus';
+import { Document, Minus, Check, Plus } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus';
 import DiffView from './DiffView.vue';
 
 const gitStore = useGitStore();
@@ -45,23 +45,24 @@ const unstageAllFiles = () => {
     ElMessage.success('所有文件已移出暂存区');
 }
 
-// 提交文件到本地仓库
-const commitFile = (id) => {
-    const message = prompt('请输入提交信息:');
-    if (message) {
-        const cleanMessage = message.trim();
-        if (cleanMessage) {
-            animationClasses.value.rowAnimation[id] = 'animate__animated animate__bounceOutRight'; // 设置提交动画
-            // 动画完成后删除逻辑
-            setTimeout(() => {
-                gitStore.commitFile(id, cleanMessage);
-                delete animationClasses.value.rowAnimation[id];
-            }, 1000)
-            ElMessage.success('文件已提交至本地仓库');
+const commitAllFiles = (fileIds) => {
+    const commitFiles = fileIds || stagingFiles.value.map((f) => f.id);
+    console.log(commitFiles)
+    // 输入提交信息
+    ElMessageBox.prompt("请输入提交信息", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        inputPattern: /^.+$/, // 输入内容必须非空
+        inputErrorMessage: "提交信息不能为空"
+    }).then(({ value }) => {
+        if (value) {
+            const cleanedMessage = value.trim();
+            if (cleanedMessage) {
+                gitStore.commitFiles(commitFiles, cleanedMessage);
+                ElMessage.success("提交成功");
+            }
         }
-    } else {
-        ElMessage.warning('提交失败：未输入提交信息')
-    }
+    }).catch(() => { });
 }
 
 // 显示文件内容对话框
@@ -102,26 +103,35 @@ const getRowAnimationClass = ({ row }) => gitStore.stagingAreaAnimation.rowAnima
 <template>
     <div class="staging-area">
         <h1 class="area-title">暂存区</h1>
-        <el-button type="default" size="small" class="unstage-button animate__animated" :icon="Minus"
-            @click="unstageAllFiles" v-if="stagingFiles.length">取消全部暂存</el-button>
-        <el-table :data="stagingFiles" style="width: 100%;" :row-class-name="getRowAnimationClass">
-            <el-table-column prop="name" label="文件名" width="180">
-                <template #default="scope">
-                    <el-link :icon="Files" @click="showFileContent(scope.row)">{{ scope.row.name }}</el-link>
-                </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="80">
-                <template #default="scope">
-                    {{ getStatusText(scope.row.status) }}
-                </template>
-            </el-table-column>
-            <el-table-column label="操作">
-                <template #default="scope">
-                    <el-link type="primary" :icon="Minus" @click="unstageFile(scope.row.id)">取消暂存</el-link>
-                    <el-link type="primary" :icon="Check" @click="commitFile(scope.row.id)">提交</el-link>
-                </template>
-            </el-table-column>
-        </el-table>
+        <el-tooltip class="box-item" effect="dark" content="提交全部" placement="top">
+            <el-button type="default" size="small" class="all-commit-button animate__animated animate__fadeIn"
+                :icon="Plus" @click="commitAllFiles()" v-show="stagingFiles.length"></el-button>
+        </el-tooltip>
+        <el-tooltip class="box-item" effect="dark" content="取消全部暂存" placement="top">
+            <el-button type="default" size="small" class="unstage-button animate__animated animate__fadeIn"
+                :icon="Minus" @click="unstageAllFiles" v-show="stagingFiles.length"></el-button>
+        </el-tooltip>
+        <el-scrollbar>
+            <el-table :data="stagingFiles" style="width: 100%;" :row-class-name="getRowAnimationClass">
+                <el-table-column prop="name" label="文件名" width="180">
+                    <template #default="scope">
+                        <el-link :icon="Document" style="font-size: 16px;"
+                            @click="showFileContent(scope.row)">{{ scope.row.name }}</el-link>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="80">
+                    <template #default="scope">
+                        {{ getStatusText(scope.row.status) }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                    <template #default="scope">
+                        <el-link type="primary" :icon="Minus" @click="unstageFile(scope.row.id)">取消暂存</el-link>
+                        <el-link type="primary" :icon="Check" @click="commitAllFiles([scope.row.id])">提交</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-scrollbar>
 
 
         <!-- 文件内容对话框 -->
@@ -144,11 +154,16 @@ const getRowAnimationClass = ({ row }) => gitStore.stagingAreaAnimation.rowAnima
     margin-right: 8px;
 }
 
+.staging-area {
+    display: flex;
+    flex-direction: column;
+}
+
 .area-title {
-    height: 80px;
-    line-height: 80px;
+    height: 60px;
+    line-height: 60px;
     margin: 0;
-    padding-left: 90px;
+    padding-left: 70px;
     background-image: url("../assets/暂存区.png");
     background-repeat: no-repeat;
     background-size: contain;
@@ -158,6 +173,12 @@ const getRowAnimationClass = ({ row }) => gitStore.stagingAreaAnimation.rowAnima
 .unstage-button {
     position: fixed;
     top: 100px;
-    left: 57%;
+    left: 62%;
+}
+
+.all-commit-button {
+    position: fixed;
+    top: 100px;
+    left: 60%;
 }
 </style>

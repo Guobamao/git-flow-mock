@@ -3,119 +3,97 @@ import { useGitStore } from '@/stores';
 import { computed, ref } from 'vue';
 import DiffView from './DiffView.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Files } from '@element-plus/icons-vue'
+import { Document, View, RefreshLeft } from '@element-plus/icons-vue'
 
 const gitStore = useGitStore();
 
 // 获取本地仓库文件
 const repoFiles = computed(() => gitStore.repo);
-
 // 抽屉组件显示控制
 const isDrawerVisible = ref(false);
-const versionList = ref([]);
 
-const isDialogVisible = ref(false);
-const fileId = ref('');
-const fileContent = ref(''); // 当前文件内容
-const isModify = ref(false); // 文件是否被修改
-const currentContent = ref('');
-const fileName = ref('');
-const versionIndex = ref(0);
+const activeName = ref('1')
 
-// 查看指定版本
-const viewVersion = (id) => {
-    fileId.value = id;
-    const repoFile = gitStore.repo.find(f => f.id === id);
-    if (repoFile) {
-        fileName.value = repoFile.name;
-        versionList.value = repoFile.versions;
-        isDrawerVisible.value = true;
-    }
-}
+// 文件是否被修改
+const isModify = ref(false);
+const currentContent = ref(''); // 工作区文件内容
+const repoContent = ref('');
+const currentFileName = ref('');
 
-const showFileContent = (row, index) => {
-    const currentFile = gitStore.files.find(f => f.id === fileId.value);
-    if (currentFile && currentFile.content !== row.content) {
+// 文件内容对话框
+const isDialogVisible = ref(false)
+
+
+const showFileContent = (file) => {
+    currentFileName.value = file.name;
+    // 获取当前工作区的文件
+    const currentFile = gitStore.files.find(f => f.id === file.id);
+    // 判断当前文件内容与本地仓库中的文件内容是否一致
+    if (currentFile && currentFile.content !== file.content) {
         isModify.value = true;
         currentContent.value = currentFile.content;
-        versionIndex.value = index
     } else {
         isModify.value = false;
     }
-    fileContent.value = row.content;
+    repoContent.value = file.content;
     isDialogVisible.value = true;
 }
 
 // 恢复到指定版本
-const revertToVersion = (fileId, versionIndex) => {
+const revertFile = (commitId) => {
     ElMessageBox.confirm('确定要恢复到此版本吗？').then(() => {
         // 恢复到指定版本
-        gitStore.revertFile(fileId, versionIndex);
+        gitStore.revertFile(commitId);
         isDrawerVisible.value = false;
         isDialogVisible.value = false;
         ElMessage.success('文件已恢复到指定版本');
     })
 }
-
-// 动画相关状态
-const animationClasses = ref({
-    // 存放行的动画
-    rowAnimation: {},
-});
-// 动态获取表格行的类名
-const getRowAnimationClass = ({ row }) => gitStore.repoAnimation.rowAnimation[row.id] || animationClasses.value.rowAnimation[row.id] || ''
 </script>
 
 
 <template>
     <div class="repo-area">
         <h1 class="area-title">本地仓库</h1>
-        <el-table :data="repoFiles" style="width: 100%;" :row-class-name="getRowAnimationClass">
-            <el-table-column prop="name" label="文件名" width="180">
-                <template #default="scope">
-                    <el-text>
-                        <el-icon>
-                            <Files />
-                        </el-icon>
-                        {{ scope.row.name }}</el-text>
-                </template>
-            </el-table-column>
-            <el-table-column label="操作">
-                <template #default="scope">
-                    <el-link type="primary" @click="viewVersion(scope.row.id)">查看版本</el-link>
-                </template>
-            </el-table-column>
-        </el-table>
-
-        <!-- 版本历史抽屉 -->
-        <el-drawer v-model="isDrawerVisible" :title="'版本历史：' + fileName">
-            <el-table :data="versionList" style="width: 100%;">
-                <el-table-column prop="message" label="提交消息" width="180" :show-overflow-tooltip="true">
-                    <template #default="scope">
-                        <el-link @click="showFileContent(scope.row, scope.$index)">{{ scope.row.message }}</el-link>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="timestamp" label="提交时间"></el-table-column>
-                <el-table-column label="操作">
-                    <template #default="scope">
-                        <el-link type="primary" @click="showFileContent(scope.row, scope.$index)">恢复到此版本</el-link>
-                    </template>
-                </el-table-column>
-            </el-table>
-        </el-drawer>
+        <el-scrollbar>
+            <el-timeline>
+                <el-timeline-item v-for="(item, index) in repoFiles" :key="item.id" :timestamp="item.timestamp"
+                    type="primary">
+                    <el-collapse v-model="activeName" accordion>
+                        <el-collapse-item :name="index">
+                            <template #title>
+                                <span class="file-name">{{ item.message }}</span>
+                                <el-tooltip class="box-item" effect="dark" content="恢复到此版本" placement="top">
+                                    <el-button type="text" :icon="RefreshLeft" @click="revertFile(item.id)"
+                                        @click.stop></el-button>
+                                </el-tooltip>
+                            </template>
+                            <ul class="file-list">
+                                <li class="file-item" v-for="file in item.files" :key="file.id">
+                                    <el-link :icon="Document" class="file-link"
+                                        @click="showFileContent(file)">{{ file.name }}
+                                    </el-link>
+                                    <el-tooltip class="box-item" effect="dark" content="查看" placement="top">
+                                        <el-link type="primary" :icon="View" @click="showFileContent(file)"></el-link>
+                                    </el-tooltip>
+                                </li>
+                            </ul>
+                        </el-collapse-item>
+                    </el-collapse>
+                </el-timeline-item>
+            </el-timeline>
+        </el-scrollbar>
 
         <!-- 文件内容对话框 -->
-        <DiffView v-if="isModify" v-model="isDialogVisible" :old-content="fileContent" :new-content="currentContent"
-            @revert="revertToVersion(fileId, versionIndex)">
+        <DiffView v-if="isModify" v-model="isDialogVisible" :old-content="repoContent" :new-content="currentContent">
         </DiffView>
-        <el-dialog v-model="isDialogVisible" v-else :title="fileName" width="400px" @close="isDialogVisible = false"
-            :modal="false">
+        <el-dialog v-model="isDialogVisible" v-else :title="currentFileName" width="400px"
+            @close="isDialogVisible = false">
             <div class="diff-column">
-                <div v-html="fileContent" class="diff-content"></div>
+                <div v-html="repoContent" class="diff-content"></div>
             </div>
             <template #footer>
                 <el-button @click="isDialogVisible = false">关闭</el-button>
-                <el-button type="primary" @click="revertToVersion(fileId, versionIndex)">恢复到此版本</el-button>
             </template>
         </el-dialog>
     </div>
@@ -127,21 +105,28 @@ const getRowAnimationClass = ({ row }) => gitStore.repoAnimation.rowAnimation[ro
     margin-right: 8px;
 }
 
+.repo-area {
+    display: flex;
+    flex-direction: column;
+}
+
 .area-title {
-    height: 80px;
-    line-height: 80px;
+    height: 60px;
+    line-height: 60px;
     margin: 0;
-    padding-left: 90px;
+    padding-left: 70px;
     background-image: url("../assets/本地仓库.png");
     background-repeat: no-repeat;
     background-size: contain;
-    color: #8b8b8b;
+    color:
+        #8b8b8b;
 }
 
 .diff-column {
     border: 1px solid #ccc;
     padding: 10px;
-    white-space: pre-wrap;
+    white-space:
+        pre-wrap;
     font-family: monospace;
     background-color: #f9f9f9;
     overflow: auto;
@@ -149,5 +134,47 @@ const getRowAnimationClass = ({ row }) => gitStore.repoAnimation.rowAnimation[ro
 
 .diff-content {
     font-size: 18px;
+}
+
+.el-timeline {
+    margin-top: 20px;
+    --el-timeline-node-color: #409EFF;
+}
+
+.el-timeline-item {
+    padding-bottom: 30px;
+}
+
+.el-collapse {
+    border: none
+}
+
+.el-collapse {
+    :deep() .el-collapse-item__header {
+        height: 20px;
+        font-size: 16px;
+    }
+
+    :deep() .el-collapse-item__content {
+        padding-bottom: 0;
+    }
+}
+
+.file-list {
+    list-style: none;
+    padding-left: 20px;
+}
+
+.file-item {
+    width: 80%;
+    border-bottom: 1px solid #ccc;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.header-icon {
+    margin-left: 50px
 }
 </style>
