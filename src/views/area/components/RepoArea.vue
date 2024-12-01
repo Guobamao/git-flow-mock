@@ -115,7 +115,7 @@ const revertFile = (commitId) => {
     line-height: 60px;
     margin: 0;
     padding-left: 70px;
-    background-image: url("../assets/本地仓库.png");
+    background-image: url("../../../assets/本地仓库.png");
     background-repeat: no-repeat;
     background-size: contain;
     color:

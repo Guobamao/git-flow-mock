@@ -224,7 +224,7 @@ const getCellAnimationClass = (id) => gitStore.workAreaAnimation.cellAnimation[i
     line-height: 60px;
     margin: 0;
     padding-left: 70px;
-    background-image: url("../assets/工作区.png");
+    background-image: url("../../../assets/工作区.png");
     background-repeat: no-repeat;
     background-size: contain;
     color: #8b8b8b;

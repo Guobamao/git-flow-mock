@@ -36,7 +36,7 @@ const clearCache = () => {
 
 <template>
     <div class="header">
-        <span>Git三大工作区</span>
+        <span>Git 三大工作区</span>
         <el-button type="primary" size="small" @click="clearCache">清空缓存</el-button>
     </div>
     <div class="container">
