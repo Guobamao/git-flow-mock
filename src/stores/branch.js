@@ -43,7 +43,7 @@ export const useBranchStore = defineStore(
         release: ["develop", "hotfix"],
       },
       // 提交代码规则
-      commit: ["feature", "release", "hotfix", "develop"]
+      commit: ["feature", "release", "hotfix"]
     }
 
     return {
@@ -65,10 +65,9 @@ export const useBranchStore = defineStore(
 
       // 校验创建规则
       const validSources = rules.branch[name.split("-")[0]]
-      if (!validSources.includes(baseBranch.type)) {
+      if (validSources &&!validSources.includes(baseBranch.type)) {
         return ElMessage.error(`${name} 分支只能基于 ${validSources.join(" 和 ")} 分支创建`)
       }
-
       // 排序规则
       let newType = ""
       if (name === "develop" || name === "hotfix") {
@@ -85,7 +84,7 @@ export const useBranchStore = defineStore(
         branchOrder.value = 2 - featureCount.value
         featureCount.value++
       } else {
-        return ElMessage.error(`分支名称不符合规则`)
+        newType = "other"
       }
 
       // 创建新分支
@@ -110,7 +109,6 @@ export const useBranchStore = defineStore(
       }
 
       const validSources = rules.commit
-      console.log(validSources)
       if (!validSources.includes(branch.type)) {
         return ElMessage.error(`${branchName} 分支不能直接提交代码`)
       }

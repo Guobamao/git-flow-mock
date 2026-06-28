@@ -17,6 +17,25 @@ const rules = {
 // 分支列表
 const branchList = computed(() => store.branches.map((item) => item.name));
 
+const allBranchName = ref([
+    { value: 'develop' },
+    { value: 'release' },
+    { value: 'hotfix' },
+    { value: 'feature-1' },
+    { value: 'feature-2' },
+    { value: 'feature-3' },
+])
+
+const querySearch = (queryString, cb) => {
+    const results = queryString ? allBranchName.value.filter(createFilter(queryString)) : allBranchName.value;
+    cb(results);
+}
+
+const createFilter = (queryString) => {
+    return (item) => {
+        return (item.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
+    }
+}
 // 创建分支
 const createBranch = () => {
     formRef.value.validate((valid) => {
@@ -44,7 +63,9 @@ const closeDialog = () => {
     <el-dialog v-model="props.visible" title="创建代码分支" width="500" @close="closeDialog">
         <el-form :model="form" ref="formRef" :rules="rules" class="create-branch-form">
             <el-form-item label="分支名称" prop="branchName">
-                <el-input v-model="form.branchName" placeholder="请输入分支名称" maxlength="255" show-word-limit />
+                <el-autocomplete v-model="form.branchName" :fetch-suggestions="querySearch" placeholder="请输入分支名称"
+                    clearable />
+                <!-- <el-input v-model="form.branchName" placeholder="请输入分支名称" maxlength="255" show-word-limit /> -->
             </el-form-item>
             <el-form-item label="创建来源" prop="branchSource">
                 <el-select v-model="form.branchSource" filterable placeholder="请选择分支">
